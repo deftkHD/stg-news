@@ -11,17 +11,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import androidx.annotation.NonNull;
-import com.google.android.material.navigation.NavigationView;
-import androidx.core.view.GravityCompat;
-import androidx.drawerlayout.widget.DrawerLayout;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDelegate;
-import androidx.appcompat.widget.SearchView;
-import androidx.appcompat.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -33,21 +22,32 @@ import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.appcompat.widget.SearchView;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
 import com.elvers.gereon.stgnewsapp1.R;
 import com.elvers.gereon.stgnewsapp1.adapter.ArticleAdapter;
 import com.elvers.gereon.stgnewsapp1.adapter.AuthorAdapter;
-import com.elvers.gereon.stgnewsapp1.api.Article;
-import com.elvers.gereon.stgnewsapp1.api.Author;
-import com.elvers.gereon.stgnewsapp1.api.CategoryResponse;
-import com.elvers.gereon.stgnewsapp1.api.ListEntry;
-import com.elvers.gereon.stgnewsapp1.handlers.ICategoriesLoadedHandler;
-import com.elvers.gereon.stgnewsapp1.handlers.IListContentLoadedHandler;
-import com.elvers.gereon.stgnewsapp1.tasks.LoadCategoriesTask;
-import com.elvers.gereon.stgnewsapp1.tasks.LoadListContentTask;
+import com.elvers.gereon.stgnewsapp1.api.WordPressAPI;
+import com.elvers.gereon.stgnewsapp1.api.object.Post;
+import com.elvers.gereon.stgnewsapp1.api.object.User;
+import com.elvers.gereon.stgnewsapp1.api.request.PostsRequest;
+import com.elvers.gereon.stgnewsapp1.api.request.UsersRequest;
+import com.elvers.gereon.stgnewsapp1.api.request.CategoriesRequest;
+import com.elvers.gereon.stgnewsapp1.api.response.PostsResponse;
+import com.elvers.gereon.stgnewsapp1.api.response.UsersResponse;
+import com.elvers.gereon.stgnewsapp1.api.response.CategoriesResponse;
 import com.elvers.gereon.stgnewsapp1.utils.Utils;
+import com.google.android.material.navigation.NavigationView;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Main Activity of the App. This contains all functionality included in the main screen
@@ -55,15 +55,7 @@ import java.util.List;
  *
  * @author Gereon Elvers
  */
-public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener, IListContentLoadedHandler, ICategoriesLoadedHandler {
-
-    /**
-     * Static request URL (modifiers will append to this)
-     * Modifiers:
-     * {@param filterParam} for category filtering
-     * {@param numberOfArticlesParam} for changing the number of posts requested
-     */
-    private static final String WP_REQUEST_URL = "www.stg-sz.net";
+public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener, CategoriesRequest.CategoriesRequestResultHandler, UsersRequest.AuthorsRequestResultHandler, PostsRequest.ArticlesRequestResultHandler {
 
     /* There are a lot of items declared outside of individual methods here.
     This is done because they are required to be available across methods and it's more economical to simply initialize them onCreate() */
@@ -165,9 +157,6 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         loadingIndicatorBottom = new ProgressBar(this);
         contentListView.addFooterView(loadingIndicatorBottom);
 
-        // Start loading categories
-        new LoadCategoriesTask(this).execute();
-
         // SwipeRefreshLayout is initialized and refresh functionality is implemented
         mSwipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         mSwipeRefreshLayout.setColorSchemeResources(R.color.colorAccent);
@@ -250,37 +239,40 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     public void initLoaderListView() {
         pageNumber = 1;
 
+        // start updating categories
+        WordPressAPI.requestCategories(this);
+
         // init loader listview
         if (isAuthorsSelected) {
-            mAdapter = new AuthorAdapter(this, new ArrayList<Author>());
+            mAdapter = new AuthorAdapter(this, new ArrayList<User>());
             contentListView.setAdapter(mAdapter);
             contentListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                 @Override
                 public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                     if (mAdapter.getCount() > i) {
-                        Author currentAuthor = (Author) mAdapter.getItem(i);
+                        User currentUser = (User) mAdapter.getItem(i);
                         Intent authorIntent = new Intent(getApplicationContext(), SearchActivity.class);
-                        if (currentAuthor != null) {
+                        if (currentUser != null) {
                             authorIntent.setAction(SearchActivity.ACTION_FILTER_AUTHOR);
-                            authorIntent.putExtra(SearchActivity.EXTRA_AUTHOR_ID, currentAuthor.getId());
+                            authorIntent.putExtra(SearchActivity.EXTRA_AUTHOR_ID, currentUser.getId());
                         }
                         startActivity(authorIntent);
                     }
                 }
             });
         } else {
-            mAdapter = new ArticleAdapter(this, new ArrayList<Article>());
+            mAdapter = new ArticleAdapter(this, new ArrayList<Post>());
             contentListView.setAdapter(mAdapter);
             contentListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                 @Override
                 public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                     if (mAdapter.getCount() > i) {
-                        Article currentArticle = (Article) mAdapter.getItem(i);
+                        Post currentPost = (Post) mAdapter.getItem(i);
                         Intent articleIntent = new Intent(getApplicationContext(), ArticleActivity.class);
-                        if (currentArticle != null) {
-                            articleIntent.putExtra("ARTICLE_URI", currentArticle.getUrl());
-                            articleIntent.putExtra("ARTICLE_TITLE", currentArticle.getTitleHtmlEscaped());
-                            articleIntent.putExtra("ARTICLE_ID", currentArticle.getId());
+                        if (currentPost != null) {
+                            articleIntent.putExtra("ARTICLE_URI", currentPost.getUrl());
+                            articleIntent.putExtra("ARTICLE_TITLE", currentPost.getTitleHtmlEscaped());
+                            articleIntent.putExtra("ARTICLE_ID", currentPost.getId());
                         }
                         startActivity(articleIntent);
                     }
@@ -294,70 +286,12 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     private void startFetchingContent() {
         loadingContent = true;
 
-        // make sure categories are loaded (they are not if there was no internet connection during the startup of the app)
-        if (Utils.categoryResponse == null)
-            new LoadCategoriesTask(this).execute();
-
-        Uri.Builder uriBuilder = new Uri.Builder();
-        uriBuilder.scheme("https");
-        uriBuilder.authority(WP_REQUEST_URL);
-        uriBuilder.appendPath("wp-json").appendPath("wp").appendPath("v2");
-        if (isAuthorsSelected) {
-            uriBuilder.appendPath("users");
-        } else {
-            uriBuilder.appendPath("posts");
-            if (!filterParam.isEmpty()) {
-                uriBuilder.appendQueryParameter("categories", filterParam);
-            }
+        if (isAuthorsSelected) { // query authors
+            WordPressAPI.requestUsers(this, null, 100, null);
+        } else { // query articles
+            String[] whitelist = isFavoriteSelected ? sharedPreferences.getString("favorites", "").split(",") : null;
+            WordPressAPI.requestPosts(this, filterParam, null, null, Integer.parseInt(numberOfArticlesParam), whitelist, pageNumber);
         }
-
-        if (!numberOfArticlesParam.isEmpty()) {
-            uriBuilder.appendQueryParameter("per_page", numberOfArticlesParam);
-        }
-        if (isFavoriteSelected && !isAuthorsSelected) {
-            for (String fav : sharedPreferences.getString("favorites", "").split(",")) {
-                uriBuilder.appendQueryParameter("include[]", fav);
-            }
-        }
-        uriBuilder.appendQueryParameter("page", String.valueOf(pageNumber));
-        Log.e("Query URI: ", uriBuilder.toString());
-
-        new LoadListContentTask(this).execute(uriBuilder.toString());
-    }
-
-    @Override
-    public void onListContentFetched(List<ListEntry> articles) {
-        // Once the load process is finished, the loadingIndicator circle should disappear
-        loadingIndicator.setVisibility(View.GONE);
-        loadingIndicatorBottom.setVisibility(View.GONE);
-
-        canLoadMoreContent = true;
-
-        mAdapter.notifyDataSetChanged();
-        if (articles == null) {
-            emptyView.setText(R.string.no_articles_network);
-            emptyView.setOnClickListener(new View.OnClickListener() {
-                @SuppressLint("SetTextI18n")
-                @Override
-                public void onClick(View v) {
-                    pageNumber = 1;
-                    refreshListView();
-                }
-            });
-        } else if (articles.isEmpty()) {
-            emptyView.setText(R.string.no_articles);
-            canLoadMoreContent = false;
-        } else {
-            mAdapter.addAll(articles);
-            if (articles.size() != Integer.parseInt(numberOfArticlesParam))
-                canLoadMoreContent = false;
-        }
-
-        if (mSwipeRefreshLayout.isRefreshing()) {
-            mSwipeRefreshLayout.setRefreshing(false);
-        }
-
-        loadingContent = false;
     }
 
     /**
@@ -466,8 +400,78 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
     }
 
     @Override
-    public void onCategoriesFetched(List<CategoryResponse.Category> categories) {
+    public void onCategoriesReceived(CategoriesResponse response) {
         displayCachedCategories();
+    }
+
+    @Override
+    public void onAuthorsReceived(UsersResponse response) {
+        // Once the load process is finished, the loadingIndicator circle should disappear
+        loadingIndicator.setVisibility(View.GONE);
+        loadingIndicatorBottom.setVisibility(View.GONE);
+
+        canLoadMoreContent = true;
+
+        mAdapter.notifyDataSetChanged();
+        if (response == null) {
+            emptyView.setText(R.string.no_articles_network);
+            emptyView.setOnClickListener(new View.OnClickListener() {
+                @SuppressLint("SetTextI18n")
+                @Override
+                public void onClick(View v) {
+                    pageNumber = 1;
+                    refreshListView();
+                }
+            });
+        } else if (response.users.isEmpty()) {
+            emptyView.setText(R.string.no_articles);
+            canLoadMoreContent = false;
+        } else {
+            mAdapter.addAll(response.users);
+            if (response.users.size() != Integer.parseInt(numberOfArticlesParam))
+                canLoadMoreContent = false;
+        }
+
+        if (mSwipeRefreshLayout.isRefreshing()) {
+            mSwipeRefreshLayout.setRefreshing(false);
+        }
+
+        loadingContent = false;
+    }
+
+    @Override
+    public void onArticlesReceived(PostsResponse response) {
+        // Once the load process is finished, the loadingIndicator circle should disappear
+        loadingIndicator.setVisibility(View.GONE);
+        loadingIndicatorBottom.setVisibility(View.GONE);
+
+        canLoadMoreContent = true;
+
+        mAdapter.notifyDataSetChanged();
+        if (response == null) {
+            emptyView.setText(R.string.no_articles_network);
+            emptyView.setOnClickListener(new View.OnClickListener() {
+                @SuppressLint("SetTextI18n")
+                @Override
+                public void onClick(View v) {
+                    pageNumber = 1;
+                    refreshListView();
+                }
+            });
+        } else if (response.posts.isEmpty()) {
+            emptyView.setText(R.string.no_articles);
+            canLoadMoreContent = false;
+        } else {
+            mAdapter.addAll(response.posts);
+            if (response.posts.size() != Integer.parseInt(numberOfArticlesParam))
+                canLoadMoreContent = false;
+        }
+
+        if (mSwipeRefreshLayout.isRefreshing()) {
+            mSwipeRefreshLayout.setRefreshing(false);
+        }
+
+        loadingContent = false;
     }
 
     private class InfinityScrollListener implements AbsListView.OnScrollListener {

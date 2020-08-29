@@ -6,11 +6,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import androidx.loader.app.LoaderManager;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AppCompatDelegate;
-import androidx.appcompat.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -20,9 +15,15 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.appcompat.widget.Toolbar;
+import androidx.loader.app.LoaderManager;
+
 import com.elvers.gereon.stgnewsapp1.R;
-import com.elvers.gereon.stgnewsapp1.handlers.ICommentPostedhandler;
-import com.elvers.gereon.stgnewsapp1.tasks.PostCommentTask;
+import com.elvers.gereon.stgnewsapp1.api.WordPressAPI;
+import com.elvers.gereon.stgnewsapp1.api.action.ActionResultHandler;
 import com.elvers.gereon.stgnewsapp1.utils.Utils;
 
 /**
@@ -30,10 +31,11 @@ import com.elvers.gereon.stgnewsapp1.utils.Utils;
  *
  * @author Gereon Elvers
  */
-public class CreateCommentActivity extends AppCompatActivity implements ICommentPostedhandler, SharedPreferences.OnSharedPreferenceChangeListener {
+public class CreateCommentActivity extends AppCompatActivity implements ActionResultHandler, SharedPreferences.OnSharedPreferenceChangeListener {
 
     // Tag for log messages
     private static final String LOG_TAG = CreateCommentActivity.class.getSimpleName();
+
     /* There are a lot of items declared outside of individual methods here.
     This is done because they are required to be available across methods and it's more economical to simply initialize them onCreate()*/
     String articleId;
@@ -224,7 +226,7 @@ public class CreateCommentActivity extends AppCompatActivity implements IComment
                 contentString = contentET.getText().toString();
                 if (articleId != null) {
                     // Check if lo-net address ending is present in email
-                    new PostCommentTask(this).execute(articleId, nameString, emailString, contentString);
+                    WordPressAPI.sendComment(this, Integer.parseInt(articleId), nameString, emailString, contentString);
                 } else {
                     Log.e(LOG_TAG, "Article ID empty, can't submit comment");
                 }
@@ -244,9 +246,9 @@ public class CreateCommentActivity extends AppCompatActivity implements IComment
     }
 
     @Override
-    public void onCommentPosted(int result) {
+    public void onActionResult(Integer responseCode) {
         // If submission was successful, status code will be 201. Return to previous activity to prevent duplicate submissions
-        if (result == 201) {
+        if (responseCode == 201) {
             Toast.makeText(this, getResources().getString(R.string.successful_post), Toast.LENGTH_LONG).show();
             SharedPreferences.Editor editor = preferences.edit();
             editor.putString("name_add", nameAdd);
@@ -257,7 +259,7 @@ public class CreateCommentActivity extends AppCompatActivity implements IComment
         // If status code is anything but 201, submission was not successful.
         // Display error message while staying in activity.
         else {
-            Toast.makeText(this, getResources().getString(R.string.unsuccessful_post) + " " + result, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getResources().getString(R.string.unsuccessful_post) + " " + responseCode, Toast.LENGTH_LONG).show();
         }
     }
 

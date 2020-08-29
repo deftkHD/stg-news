@@ -26,7 +26,7 @@ import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.daimajia.swipe.SwipeLayout;
 import com.elvers.gereon.stgnewsapp1.R;
-import com.elvers.gereon.stgnewsapp1.api.Article;
+import com.elvers.gereon.stgnewsapp1.api.object.Post;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,7 +39,7 @@ import java.util.regex.Matcher;
  *
  * @author Gereon Elvers
  */
-public class ArticleAdapter extends ArrayAdapter<Article> {
+public class ArticleAdapter extends ArrayAdapter<Post> {
 
 
     private SharedPreferences sharedPreferences;
@@ -52,8 +52,8 @@ public class ArticleAdapter extends ArrayAdapter<Article> {
      * {@param context} because it interacts with the layout and
      * {@param articles} a list of Articles  as a data source
      */
-    public ArticleAdapter(Context context, List<Article> articles) {
-        super(context, 0, articles);
+    public ArticleAdapter(Context context, List<Post> posts) {
+        super(context, 0, posts);
     }
 
     /**
@@ -73,16 +73,16 @@ public class ArticleAdapter extends ArrayAdapter<Article> {
 
 
         // Get current Article from the list
-        final Article currentArticle = getItem(position);
+        final Post currentPost = getItem(position);
 
 
         /* The code below applies the info from the Article to the listItemView */
-        if (currentArticle != null) {
+        if (currentPost != null) {
 
             final ProgressBar imageProgressBar = listItemView.findViewById(R.id.img_load_indicator);
 
             ImageView coverIV = listItemView.findViewById(R.id.article_item_cover_iv);
-            String coverImageString = currentArticle.getCoverImage();
+            String coverImageString = currentPost.getCoverImage();
             if (!coverImageString.isEmpty()) {
                 // Load image with Glide
                 Glide.with(super.getContext())
@@ -113,13 +113,13 @@ public class ArticleAdapter extends ArrayAdapter<Article> {
 
             // Display article title
             TextView titleTV = listItemView.findViewById(R.id.article_item_title_tv);
-            String title = currentArticle.getTitleHtmlEscaped();
+            String title = currentPost.getTitleHtmlEscaped();
             Spanned spannedTitle = Html.fromHtml(title);
             titleTV.setText(spannedTitle);
 
             // Display author name
             TextView authorTV = listItemView.findViewById(R.id.article_item_author_name_tv);
-            String authorName = currentArticle.getAuthor();
+            String authorName = currentPost.getAuthor();
             String displayAuthor = "";
             if (!authorName.isEmpty()) {
                 displayAuthor = getContext().getString(R.string.author_display_add) + authorName;
@@ -128,12 +128,12 @@ public class ArticleAdapter extends ArrayAdapter<Article> {
 
             // Display publication date
             TextView dateTV = listItemView.findViewById(R.id.article_item_date_tv);
-            String dateString = currentArticle.getDate();
+            String dateString = currentPost.getDate();
             dateTV.setText(dateString);
 
             // Display assigned categories
             TextView categoryTV = listItemView.findViewById(R.id.article_item_category_tv);
-            String categoryString = currentArticle.getCategory();
+            String categoryString = currentPost.getCategory();
             categoryTV.setText(categoryString);
 
             // Set up share functionality
@@ -144,7 +144,7 @@ public class ArticleAdapter extends ArrayAdapter<Article> {
                     Intent shareIntent = new Intent(Intent.ACTION_SEND);
                     shareIntent.setType("text/plain");
                     shareIntent.putExtra(Intent.EXTRA_SUBJECT, getContext().getString(R.string.share_subject));
-                    shareIntent.putExtra(Intent.EXTRA_TEXT, getContext().getString(R.string.share_text) + currentArticle.getUrl());
+                    shareIntent.putExtra(Intent.EXTRA_TEXT, getContext().getString(R.string.share_text) + currentPost.getUrl());
                     // launches share recipient chooser with share_title as title
                     getContext().startActivity(Intent.createChooser(shareIntent, getContext().getString(R.string.share_title)));
 
@@ -170,7 +170,7 @@ public class ArticleAdapter extends ArrayAdapter<Article> {
             sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
 
             getFavorites();
-            String articleID = String.valueOf(currentArticle.getId());
+            String articleID = String.valueOf(currentPost.getId());
 
             // Set initial favorite-drawable
             checkFavorite(articleID, favoritesList);
@@ -182,19 +182,19 @@ public class ArticleAdapter extends ArrayAdapter<Article> {
             swipe_star_iv.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    String articleID = String.valueOf(currentArticle.getId());
+                    String articleID = String.valueOf(currentPost.getId());
                     getFavorites();
                     checkFavorite(articleID, favoritesList);
                     if (isFavorite) {
                         unfavorite(articleID, favoritesList);
                         swipe_star_iv.setImageDrawable(unstar);
                         checkFavorite(articleID, favoritesList);
-                        Toast.makeText(getContext(), getContext().getResources().getString(R.string.removed_from_favorites) + ": \"" + currentArticle.getTitle() + "\"", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), getContext().getResources().getString(R.string.removed_from_favorites) + ": \"" + currentPost.getTitle() + "\"", Toast.LENGTH_SHORT).show();
                     } else {
                         favorite(articleID, favoritesList);
                         swipe_star_iv.setImageDrawable(star);
                         checkFavorite(articleID, favoritesList);
-                        Toast.makeText(getContext(), getContext().getResources().getString(R.string.added_to_favorites) + ": \"" + currentArticle.getTitle() + "\"", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), getContext().getResources().getString(R.string.added_to_favorites) + ": \"" + currentPost.getTitle() + "\"", Toast.LENGTH_SHORT).show();
                     }
                 }
             });

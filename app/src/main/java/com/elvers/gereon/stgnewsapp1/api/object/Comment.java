@@ -1,12 +1,15 @@
-package com.elvers.gereon.stgnewsapp1.api;
+package com.elvers.gereon.stgnewsapp1.api.object;
 
+
+import java.util.Arrays;
 
 public class Comment {
-    private int mId;
-    private String mAuthor;
-    private String mDate;
-    private String mTime;
-    private String mContent;
+
+    private final int mId;
+    private final String mAuthor;
+    private final String mDate;
+    private final String mTime;
+    private final String mContent;
 
     /**
      * Constructs a new {@link Comment} object.
@@ -25,7 +28,8 @@ public class Comment {
     }
 
     /**
-     * The following methods return the individual components of the Comment (think of the Comment object as a container containing the other objects)
+     * The following methods return the individual components of the Comment
+     * (think of the Comment object as a container containing the other objects)
      */
 
     public int getId() {
@@ -48,5 +52,16 @@ public class Comment {
         return mContent;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Comment comment = (Comment) o;
+        return mId == comment.mId;
+    }
 
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(new int[]{mId});
+    }
 }

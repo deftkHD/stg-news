@@ -23,15 +23,16 @@ import android.widget.TextView;
 import com.elvers.gereon.stgnewsapp1.R;
 import com.elvers.gereon.stgnewsapp1.adapter.ArticleAdapter;
 import com.elvers.gereon.stgnewsapp1.adapter.AuthorAdapter;
-import com.elvers.gereon.stgnewsapp1.api.Article;
-import com.elvers.gereon.stgnewsapp1.api.Author;
-import com.elvers.gereon.stgnewsapp1.api.ListEntry;
-import com.elvers.gereon.stgnewsapp1.handlers.IListContentLoadedHandler;
-import com.elvers.gereon.stgnewsapp1.tasks.LoadListContentTask;
+import com.elvers.gereon.stgnewsapp1.api.WordPressAPI;
+import com.elvers.gereon.stgnewsapp1.api.object.Post;
+import com.elvers.gereon.stgnewsapp1.api.object.User;
+import com.elvers.gereon.stgnewsapp1.api.request.PostsRequest;
+import com.elvers.gereon.stgnewsapp1.api.request.UsersRequest;
+import com.elvers.gereon.stgnewsapp1.api.response.PostsResponse;
+import com.elvers.gereon.stgnewsapp1.api.response.UsersResponse;
 import com.elvers.gereon.stgnewsapp1.utils.Utils;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Search Activity of the App. This Activity is used when a search query is send through the SearchView on {@link MainActivity}.
@@ -39,7 +40,7 @@ import java.util.List;
  *
  * @author Gereon Elvers
  */
-public class SearchActivity extends AppCompatActivity implements IListContentLoadedHandler, SharedPreferences.OnSharedPreferenceChangeListener {
+public class SearchActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener, PostsRequest.ArticlesRequestResultHandler, UsersRequest.AuthorsRequestResultHandler {
 
     public static String ACTION_FILTER_AUTHOR = "FILTER_BY_AUTHOR";
     public static String EXTRA_AUTHOR_ID = "EXTRA_AUTHOR_ID";
@@ -53,7 +54,7 @@ public class SearchActivity extends AppCompatActivity implements IListContentLoa
     SwipeRefreshLayout mSwipeRefreshLayout;
     String titleString = "";
     String searchFilter = ""; // don't want to cause a NullPointerException
-    int authorFilter = -1;
+    int authorId = -1;
     int categoryId = -1;
     ListView mListView;
     View loadingIndicator;
@@ -143,17 +144,17 @@ public class SearchActivity extends AppCompatActivity implements IListContentLoa
         pageNumber = 1;
 
         if (categoryId == -3) {
-            mAdapter = new AuthorAdapter(this, new ArrayList<Author>());
+            mAdapter = new AuthorAdapter(this, new ArrayList<User>());
             mListView.setAdapter(mAdapter);
             mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                 @Override
                 public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                     if (mAdapter.getCount() > i) {
-                        Author currentAuthor = (Author) mAdapter.getItem(i);
+                        User currentUser = (User) mAdapter.getItem(i);
                         Intent authorIntent = new Intent(getApplicationContext(), SearchActivity.class);
-                        if (currentAuthor != null) {
+                        if (currentUser != null) {
                             authorIntent.setAction(SearchActivity.ACTION_FILTER_AUTHOR);
-                            authorIntent.putExtra(SearchActivity.EXTRA_AUTHOR_ID, currentAuthor.getId());
+                            authorIntent.putExtra(SearchActivity.EXTRA_AUTHOR_ID, currentUser.getId());
                         }
                         finish(); // maybe the articles listed by author should have their own activity (this is just a dirty fix)
                         startActivity(authorIntent);
@@ -161,18 +162,18 @@ public class SearchActivity extends AppCompatActivity implements IListContentLoa
                 }
             });
         } else {
-            mAdapter = new ArticleAdapter(this, new ArrayList<Article>());
+            mAdapter = new ArticleAdapter(this, new ArrayList<Post>());
             mListView.setAdapter(mAdapter);
             mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                 @Override
                 public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                     if (mAdapter.getCount() > i) {
-                        Article currentArticle = (Article) mAdapter.getItem(i);
+                        Post currentPost = (Post) mAdapter.getItem(i);
                         Intent articleIntent = new Intent(getApplicationContext(), ArticleActivity.class);
-                        if (currentArticle != null) {
-                            articleIntent.putExtra("ARTICLE_URI", currentArticle.getUrl());
-                            articleIntent.putExtra("ARTICLE_TITLE", currentArticle.getTitleHtmlEscaped());
-                            articleIntent.putExtra("ARTICLE_ID", currentArticle.getId());
+                        if (currentPost != null) {
+                            articleIntent.putExtra("ARTICLE_URI", currentPost.getUrl());
+                            articleIntent.putExtra("ARTICLE_TITLE", currentPost.getTitleHtmlEscaped());
+                            articleIntent.putExtra("ARTICLE_ID", currentPost.getId());
                         }
                         startActivity(articleIntent);
                     }
@@ -198,29 +199,22 @@ public class SearchActivity extends AppCompatActivity implements IListContentLoa
 
         if (!searchFilter.isEmpty()) {
             uriBuilder.appendQueryParameter("search", searchFilter);
-        } else if (authorFilter != -1 && categoryId != -3) {
-            uriBuilder.appendQueryParameter("author", String.valueOf(authorFilter));
-        }
-        if (categoryId > 0) {
-            uriBuilder.appendQueryParameter("categories", String.valueOf(categoryId));
+        } else if (authorId != -1 && categoryId != -3) {
+            uriBuilder.appendQueryParameter("author", String.valueOf(authorId));
         }
 
-        if (categoryId == -2) {
-            for (String fav : PreferenceManager.getDefaultSharedPreferences(this).getString("favorites", "").split(",")) {
-                uriBuilder.appendQueryParameter("include[]", fav);
-            }
+        if (categoryId == -3) { // search author
+            WordPressAPI.requestUsers(this, searchFilter, Integer.parseInt(numberOfArticlesParam), pageNumber);
+        } else { // search article
+            String[] whitelist = categoryId == -2 ? PreferenceManager.getDefaultSharedPreferences(this).getString("favorites", "").split(",") : null;
+            String categoryFilter = categoryId > 0 ? String.valueOf(categoryId) : null;
+            String authorFilter = authorId != -1 ? String.valueOf(authorId) : null;
+            WordPressAPI.requestPosts(this, categoryFilter, searchFilter, authorFilter, Integer.parseInt(numberOfArticlesParam), whitelist, pageNumber);
         }
-
-        if (!numberOfArticlesParam.isEmpty()) {
-            uriBuilder.appendQueryParameter("per_page", numberOfArticlesParam);
-        }
-
-        uriBuilder.appendQueryParameter("page", pageNumber.toString());
-        new LoadListContentTask(this).execute(uriBuilder.toString());
     }
 
     @Override
-    public void onListContentFetched(List<ListEntry> entries) {
+    public void onArticlesReceived(PostsResponse response) {
         loadingIndicator.setVisibility(View.GONE);
         loadingIndicatorBottom.setVisibility(View.GONE);
 
@@ -230,12 +224,39 @@ public class SearchActivity extends AppCompatActivity implements IListContentLoa
         emptyView.setText(R.string.no_result_search);
 
         mAdapter.notifyDataSetChanged();
-        if (entries != null && !entries.isEmpty()) {
-            mAdapter.addAll(entries);
-            if (entries.size() != Integer.parseInt(numberOfArticlesParam))
+        if (response != null && !response.posts.isEmpty()) {
+            mAdapter.addAll(response.posts);
+            if (response.posts.size() != Integer.parseInt(numberOfArticlesParam))
                 canLoadMoreContent = false;
         } else {
-            if (entries != null)
+            if (response != null)
+                canLoadMoreContent = false;
+        }
+
+        if (mSwipeRefreshLayout.isRefreshing()) {
+            mSwipeRefreshLayout.setRefreshing(false);
+        }
+
+        loadingContent = false;
+    }
+
+    @Override
+    public void onAuthorsReceived(UsersResponse response) {
+        loadingIndicator.setVisibility(View.GONE);
+        loadingIndicatorBottom.setVisibility(View.GONE);
+
+        canLoadMoreContent = true;
+
+        loadingIndicator.setVisibility(View.GONE);
+        emptyView.setText(R.string.no_result_search);
+
+        mAdapter.notifyDataSetChanged();
+        if (response != null && !response.users.isEmpty()) {
+            mAdapter.addAll(response.users);
+            if (response.users.size() != Integer.parseInt(numberOfArticlesParam))
+                canLoadMoreContent = false;
+        } else {
+            if (response != null)
                 canLoadMoreContent = false;
         }
 
@@ -252,6 +273,7 @@ public class SearchActivity extends AppCompatActivity implements IListContentLoa
      */
     @Override
     protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
         handleIntent(intent);
     }
 
@@ -267,8 +289,8 @@ public class SearchActivity extends AppCompatActivity implements IListContentLoa
             }
             titleString = (categoryId == -3 ? getString(R.string.search_title_author) : getString(R.string.search_title)) + searchFilter + "\"";
         } else if (ACTION_FILTER_AUTHOR.equals(intent.getAction())) {
-            authorFilter = intent.getIntExtra(EXTRA_AUTHOR_ID, -1);
-            titleString = getString(R.string.search_title_by_author) + Utils.getAuthorName(authorFilter);
+            authorId = intent.getIntExtra(EXTRA_AUTHOR_ID, -1);
+            titleString = getString(R.string.search_title_by_author) + WordPressAPI.getUserName(authorId);
         }
     }
 

@@ -1,4 +1,8 @@
-package com.elvers.gereon.stgnewsapp1.api;
+package com.elvers.gereon.stgnewsapp1.api.response;
+
+import androidx.annotation.Nullable;
+
+import com.elvers.gereon.stgnewsapp1.api.object.Category;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -10,7 +14,7 @@ import java.util.List;
 /**
  * The CategoryResponse contains a list of {@link Category} which is used f.e. to get the name behind a categoryId
  */
-public class CategoryResponse {
+public class CategoriesResponse extends AbstractResponse {
 
     private List<Category> categories = new ArrayList<>();
 
@@ -18,9 +22,11 @@ public class CategoryResponse {
      * Constructs CategoryResponse
      *
      * @param json response from server
-     * @throws JSONException if the json is not valid
+     * @throws JSONException if the json is not an array or not valid
      */
-    public CategoryResponse(String json) throws JSONException {
+    public CategoriesResponse(String json) throws JSONException {
+        super(json);
+
         JSONArray array = new JSONArray(json);
 
         for (int i = 0; i < array.length(); i++) {
@@ -39,6 +45,7 @@ public class CategoryResponse {
         return categories;
     }
 
+    @Nullable
     public Category getCategoryById(int id) {
         for (Category category : categories) {
             if (category.id == id)
@@ -47,19 +54,4 @@ public class CategoryResponse {
         return null;
     }
 
-    public class Category {
-        public final int id;
-        public final int count;
-        public final String description;
-        public final String link;
-        public final String name;
-
-        public Category(int id, int count, String description, String link, String name) {
-            this.id = id;
-            this.count = count;
-            this.description = description;
-            this.link = link;
-            this.name = name;
-        }
-    }
 }

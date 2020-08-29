@@ -1,14 +1,10 @@
 package com.elvers.gereon.stgnewsapp1.fragments;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import androidx.annotation.NonNull;
-import androidx.fragment.app.Fragment;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-import androidx.appcompat.app.AppCompatDelegate;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -20,28 +16,32 @@ import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.fragment.app.Fragment;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
 import com.elvers.gereon.stgnewsapp1.R;
 import com.elvers.gereon.stgnewsapp1.adapter.CommentAdapter;
-import com.elvers.gereon.stgnewsapp1.api.Comment;
-import com.elvers.gereon.stgnewsapp1.handlers.ICommentsLoadedHandler;
-import com.elvers.gereon.stgnewsapp1.tasks.LoadCommentsTask;
+import com.elvers.gereon.stgnewsapp1.api.WordPressAPI;
+import com.elvers.gereon.stgnewsapp1.api.object.Comment;
+import com.elvers.gereon.stgnewsapp1.api.request.CommentsRequest;
+import com.elvers.gereon.stgnewsapp1.api.response.CommentsResponse;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Fragment that loads and displays the comments associated with an Article
  *
  * @author Gereon Elvers
  */
-public class CommentsFragment extends Fragment implements ICommentsLoadedHandler, SharedPreferences.OnSharedPreferenceChangeListener {
+public class CommentsFragment extends Fragment implements CommentsRequest.CommentsRequestResultHandler, SharedPreferences.OnSharedPreferenceChangeListener {
 
     // Tag for log messages
     private static final String LOG_TAG = CommentsFragment.class.getSimpleName();
 
     /* There are a lot of items declared outside of individual methods here.
     This is done because they are required to be available across methods and it's more economical to simply initialize them onCreateView() */
-    private static final String COMMENTS_REQUEST_URL = "stg-sz.net";
     View loadingIndicator;
     RelativeLayout emptyView;
     TextView emptyView_tv;
@@ -157,21 +157,11 @@ public class CommentsFragment extends Fragment implements ICommentsLoadedHandler
 
     private void startFetchingComments() {
         loadingContent = true;
-
-        Uri.Builder uriBuilder = new Uri.Builder();
-        uriBuilder.scheme("https");
-        uriBuilder.authority(COMMENTS_REQUEST_URL);
-        uriBuilder.appendPath("wp-json").appendPath("wp").appendPath("v2").appendPath("comments");
-        uriBuilder.appendQueryParameter("post", articleID.toString());
-        if (!numberOfCommentsParam.isEmpty()) {
-            uriBuilder.appendQueryParameter("per_page", numberOfCommentsParam);
-            uriBuilder.appendQueryParameter("page", pageNumber.toString());
-        }
-        new LoadCommentsTask(this).execute(uriBuilder.toString());
+        WordPressAPI.requestComments(this, articleID, Integer.parseInt(numberOfCommentsParam), pageNumber);
     }
 
     @Override
-    public void onCommentsFetched(List<Comment> comments) {
+    public void onCommentsReceived(CommentsResponse response) {
         pageNumber = 1;
         canLoadMoreContent = true;
 
@@ -189,12 +179,12 @@ public class CommentsFragment extends Fragment implements ICommentsLoadedHandler
             emptyView_quill_iv.setImageResource(R.drawable.ic_quill);
 
             commentAdapter.notifyDataSetChanged();
-            if (comments != null && !comments.isEmpty()) {
-                commentAdapter.addAll(comments);
-                if (comments.size() != PreferenceManager.getDefaultSharedPreferences(getActivity()).getInt("comments_number", 10))
+            if (response != null && !response.comments.isEmpty()) {
+                commentAdapter.addAll(response.comments);
+                if (response.comments.size() != PreferenceManager.getDefaultSharedPreferences(getActivity()).getInt("comments_number", 10))
                     canLoadMoreContent = false;
             } else {
-                if (comments != null)
+                if (response != null)
                     canLoadMoreContent = false;
             }
         } catch (Exception e) {
@@ -210,10 +200,13 @@ public class CommentsFragment extends Fragment implements ICommentsLoadedHandler
 
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-        if (key.equals("dark_mode")) {
-            getActivity().recreate();
-        } else if (key.equals("comments_number")) {
-            getActivity().recreate();
+        Activity activity = getActivity();
+        if (activity != null) {
+            if (key.equals("dark_mode")) {
+                activity.recreate();
+            } else if (key.equals("comments_number")) {
+                activity.recreate();
+            }
         }
     }
 

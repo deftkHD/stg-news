@@ -342,7 +342,6 @@ public class ArticleActivity extends AppCompatActivity implements SharedPreferen
      */
     private void getFavorites() {
         String favorites = sharedPreferences.getString("favorites", "");
-        assert favorites != null;
         String[] favoritesStringArray = favorites.split(",");
         favoritesList = new ArrayList<>();
         Collections.addAll(favoritesList, favoritesStringArray);

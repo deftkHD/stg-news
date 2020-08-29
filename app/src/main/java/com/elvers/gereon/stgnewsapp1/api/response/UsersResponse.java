@@ -1,4 +1,8 @@
-package com.elvers.gereon.stgnewsapp1.api;
+package com.elvers.gereon.stgnewsapp1.api.response;
+
+import androidx.annotation.Nullable;
+
+import com.elvers.gereon.stgnewsapp1.api.object.User;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -8,23 +12,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The AuthorResponse contains a list of {@link Author} which is used f.e. to get the name behind an authorId
+ * The AuthorResponse contains a list of {@link User} which is used f.e. to get the name behind an authorId
  */
-public class AuthorResponse {
+public class UsersResponse extends AbstractResponse {
 
-    private List<Author> authors = new ArrayList<>();
+    public final List<User> users = new ArrayList<>();
 
     /**
      * Constructs AuthorResponse
      *
      * @param json response from server
-     * @throws JSONException
      */
-    public AuthorResponse(String json) throws JSONException {
+    public UsersResponse(String json) throws JSONException {
+        super(json);
+
         JSONArray array = new JSONArray(json);
         for (int i = 0; i < array.length(); i++) {
             JSONObject author = array.getJSONObject(i);
-            authors.add(new Author(
+            users.add(new User(
                     author.getInt("id"),
                     author.getString("name"),
                     author.getString("description"),
@@ -34,16 +39,13 @@ public class AuthorResponse {
         }
     }
 
-    public Author getAuthorBySlug(String slug) {
-        for (Author author : authors) {
-            if (author.getSlug().equals(slug))
-                return author;
+    @Nullable
+    public User getAuthorBySlug(String slug) {
+        for (User user : users) {
+            if (user.getSlug().equals(slug))
+                return user;
         }
         return null;
-    }
-
-    public List<Author> getAuthors() {
-        return authors;
     }
 
 }

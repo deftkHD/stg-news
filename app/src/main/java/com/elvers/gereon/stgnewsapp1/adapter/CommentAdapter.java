@@ -12,7 +12,7 @@ import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
 import com.elvers.gereon.stgnewsapp1.R;
-import com.elvers.gereon.stgnewsapp1.api.Comment;
+import com.elvers.gereon.stgnewsapp1.api.object.Comment;
 
 import java.util.List;
 

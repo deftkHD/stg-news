@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatDelegate;
 
 import com.elvers.gereon.stgnewsapp1.R;
 import com.elvers.gereon.stgnewsapp1.activities.SearchActivity;
+import com.elvers.gereon.stgnewsapp1.api.WordPressAPI;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -80,7 +81,7 @@ public class ArticleWebViewClient extends WebViewClient {
             String[] parts = url.getPath().split("/");
             if (parts.length >= 2) {
                 if (parts.length > 2 && parts[2].equalsIgnoreCase("author")) { // filter by author
-                    int authorId = Utils.authorResponse.getAuthorBySlug(url.getPath().split("/")[3]).getId();
+                    int authorId = WordPressAPI.getUserBySlug(url.getPath().split("/")[3]).getId();
                     Intent intent = new Intent();
                     intent.setAction(SearchActivity.ACTION_FILTER_AUTHOR);
                     intent.putExtra(SearchActivity.EXTRA_AUTHOR_ID, authorId);

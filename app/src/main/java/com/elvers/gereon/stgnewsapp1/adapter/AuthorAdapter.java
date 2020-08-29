@@ -12,11 +12,11 @@ import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
 import com.elvers.gereon.stgnewsapp1.R;
-import com.elvers.gereon.stgnewsapp1.api.Author;
+import com.elvers.gereon.stgnewsapp1.api.object.User;
 
 import java.util.List;
 
-public class AuthorAdapter extends ArrayAdapter<Author> {
+public class AuthorAdapter extends ArrayAdapter<User> {
 
     private static final String LOG_TAG = AuthorAdapter.class.getSimpleName();
 
@@ -26,8 +26,8 @@ public class AuthorAdapter extends ArrayAdapter<Author> {
      * {@param context} because it interacts with the layout and
      * {@param authors} a list of Authors  as a data source
      */
-    public AuthorAdapter(Context context, List<Author> authors) {
-        super(context, 0, authors);
+    public AuthorAdapter(Context context, List<User> users) {
+        super(context, 0, users);
     }
 
     /**
@@ -43,17 +43,17 @@ public class AuthorAdapter extends ArrayAdapter<Author> {
         }
 
         // Get current Author from the list
-        Author currentAuthor = getItem(position);
+        User currentUser = getItem(position);
         Log.i(LOG_TAG, "Reached getView for item " + position);
 
         /* The code below applies the info from the Author to the listItemView */
-        if (currentAuthor != null) {
+        if (currentUser != null) {
 
             TextView authorTV = listItemView.findViewById(R.id.author_name_tv);
-            authorTV.setText(currentAuthor.getName());
+            authorTV.setText(currentUser.getName());
 
             TextView descriptionTV = listItemView.findViewById(R.id.author_description_tv);
-            String description = currentAuthor.getDescription();
+            String description = currentUser.getDescription();
             if (description.isEmpty())
                 description = getContext().getResources().getString(R.string.no_description);
             Spanned spannedContent = Html.fromHtml(description);
